@@ -146,13 +146,18 @@ def main(args):
 
     X_train, Y_train = build_regressor_matrix(n, d, m, U_train, Output_train, 0, len(Output_train))
     X_test, Y_test = build_regressor_matrix(n, d, m, U_test, Output_test, 0, len(Output_test))
+
     model_ls = LinearRegression().fit(X_train, Y_train)
     model_lasso = LassoCV(cv=TimeSeriesSplit(n_splits=5)).fit(X_train, Y_train)
     model_ridge = Ridge(alpha=0.2).fit(X_train, Y_train)
 
-    print(f"R² (Least Squares): {coeff_determination(Y_test, model_ls.predict(X_test)):.4f}")
-    print(f"R² (LassoCV): {coeff_determination(Y_test, model_lasso.predict(X_test)):.4f}")
-    print(f"R² (Ridge α=0.2): {coeff_determination(Y_test, model_ridge.predict(X_test)):.4f}")
+    Y_pred_ls = model_ls.predict(X_test)
+    Y_pred_lasso = model_lasso.predict(X_test)
+    Y_pred_ridge = model_ridge.predict(X_test)
+
+    print(f"R² (Least Squares): {coeff_determination(Y_test, Y_pred_ls):.4f}")
+    print(f"R² (LassoCV): {coeff_determination(Y_test, Y_pred_lasso):.4f}")
+    print(f"R² (Ridge α=0.2): {coeff_determination(Y_test, Y_pred_ridge):.4f}")
 
     full_result = append_to_END_Y(Data_U, Data_Output, Data_test, n, d, m)
     last_400 = np.array(full_result[-400:])
@@ -160,12 +165,27 @@ def main(args):
     print(f"Saved last 400 predictions to {args.output_file}")
 
     if args.plot:
+        # Full output vs input plot
         plt.plot(full_result, linestyle=':', label='Predicted Y')
         plt.plot(Data_Output, label='True Y (Train)')
         plt.plot(np.concatenate((Data_U, Data_test)), label='Input U')
         plt.legend()
         plt.tight_layout()
         plt.savefig("PLOTS/comparison_test_train_data.png")
+        plt.close()
+
+        # Test prediction vs true comparison
+        plt.figure(figsize=(10, 5))
+        plt.plot(Y_test, label='True Y (Test)', linewidth=2)
+        plt.plot(Y_pred_ls, '--', label='Predicted Y (LS)')
+        plt.plot(Y_pred_lasso, '--', label='Predicted Y (Lasso)')
+        plt.plot(Y_pred_ridge, '--', label='Predicted Y (Ridge)')
+        plt.xlabel('Time Index')
+        plt.ylabel('Output Y')
+        plt.title('Comparison on Test Set')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("PLOTS/prediction_vs_test.png")
         plt.close()
 
     plot_learning_curve(n, d, m, U_train, Output_train, U_test, Output_test)
